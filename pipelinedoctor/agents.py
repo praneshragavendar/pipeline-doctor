@@ -118,7 +118,14 @@ def build_graph(rules: List[Rule], kb: KnowledgeBase):
     def tools_node(state: DoctorState) -> DoctorState:
         # Runs the tool the investigator asked for (read-only) and records what it saw.
         call = state["pending"]
-        observation = investigator.run_tool(call["action"], call["args"], state["text"], kb)
+        trace = state.get("agent_trace", [])
+        repeat = investigator.find_repeat(trace, call["action"], call["args"])
+        if repeat:
+            # Small models sometimes loop; don't re-run the tool, push the agent forward instead.
+            observation = (f"You already ran this exact call in step {repeat}; its result is above. "
+                           "Use a different tool or give your final answer.")
+        else:
+            observation = investigator.run_tool(call["action"], call["args"], state["text"], kb)
         step = {"thought": call["thought"], "action": call["action"], "args": call["args"], "observation": observation}
         return {"agent_trace": state.get("agent_trace", []) + [step], "pending": None}
 

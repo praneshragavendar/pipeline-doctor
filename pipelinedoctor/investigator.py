@@ -40,6 +40,12 @@ Similar past incidents found so far:
 Steps taken so far:
 {steps}
 
+Rules:
+- If the error lines above already explain the failure, give your final answer straight away.
+- Never repeat a tool call you already made; read a bigger range instead of many small ones.
+- Fix hints must solve the root cause. Never suggest disabling a safety mechanism (for example
+  -lock=false, --force, --no-verify or skipping tests) as the fix, even if the log mentions it.
+
 {budget}
 Reply with ONLY a JSON object: {{"thought": "why you are doing this", "action": "<tool name>", "args": {{...}}}}
 Be honest: if the log does not explain the failure, say so in "cause" and use a confidence below 0.5."""
@@ -160,6 +166,14 @@ def run_tool(action: str, args: Dict[str, Any], text: str, kb: KnowledgeBase) ->
     if action == "search_incidents":
         return tool_search_incidents(kb, str(args.get("query", "")))
     return f"error: unknown tool '{action}'"
+
+
+def find_repeat(trace: List[Dict[str, Any]], action: str, args: Dict[str, Any]) -> int:
+    """Return the step number of an identical earlier call, or 0 if this call is new."""
+    for number, step in enumerate(trace, start=1):
+        if step["action"] == action and step["args"] == args:
+            return number
+    return 0
 
 
 def summarize_observation(observation: str) -> str:

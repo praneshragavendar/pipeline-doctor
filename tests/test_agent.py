@@ -124,3 +124,17 @@ def test_tools_are_safe_with_bad_input():
 def test_numbered_error_lines():
     text = "ok\nERROR one\nok\nERROR two"
     assert investigator.numbered_error_lines(text, ["ERROR one", "ERROR two"]) == ["2: ERROR one", "4: ERROR two"]
+
+
+def test_repeated_tool_calls_are_not_rerun(monkeypatch):
+    same = {"thought": "again", "action": "search_log", "args": {"pattern": "rollback"}}
+    final = {"thought": "ok", "action": "final", "args": {"category": "C", "cause": "c", "fix_hints": ["h"], "confidence": 0.5}}
+    scripted(monkeypatch, [same, same, final])
+    diagnosis = Doctor().diagnose(UNKNOWN)
+    assert diagnosis.agent_trace[1]["result"].startswith("You already ran this exact call in step 1")
+
+
+def test_prompt_forbids_unsafe_fixes():
+    state = {"text": "Error: Error acquiring the state lock", "errors": [], "similar": [], "agent_trace": []}
+    prompt = investigator.build_agent_prompt(state)
+    assert "-lock=false" in prompt and "Never repeat a tool call" in prompt

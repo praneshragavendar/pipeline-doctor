@@ -9,7 +9,7 @@ It combines four layers, wired together as an **agent workflow in LangGraph**:
 3. **AI investigator agent** – for logs no rule recognises, an LLM investigates on its own: it decides which tool to use next (search the log, read lines around an error, search past incidents), looks at the result, and repeats until it can give a diagnosis. Runs on a **free local model via Ollama** (no API key) or on Claude. Its output is validated and its confidence is capped below rule-based results.
 4. **Self-healing runner** – `pipelinedoctor run -- <build command>` runs your build, diagnoses a failure, and **automatically retries transient failures** (network resets, 503s, rate limits) with backoff. Everything else is reported for a human – a model guess never triggers an action.
 
-[![CI](https://github.com/Praneshragavendar/pipeline-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/Praneshragavendar/pipeline-doctor/actions/workflows/ci.yml) – the `agent` job runs the investigator on a real local LLM (Ollama, `qwen2.5:3b`) in GitHub Actions and shows each step it took in the job summary.
+[![CI](https://github.com/Praneshragavendar/pipeline-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/Praneshragavendar/pipeline-doctor/actions/workflows/ci.yml) – the `agent` job runs the investigator on a real local LLM (Ollama, `qwen2.5:7b`) in GitHub Actions and shows each step it took in the job summary.
 
 ```
 $ pipelinedoctor analyze sample_logs/azure_msvc_toolset.log
@@ -93,7 +93,7 @@ How the agent investigated:
 - CI-friendly exit codes: `0` diagnosed, `2` unknown (with `--fail-on-unknown`), `3` bad input, `4` lint failed
 - **Cross-platform**: Linux, Windows and WSL2; no hardcoded paths (`pathlib` + environment variables); handles UTF-16/cp1252 Windows logs and CRLF line endings; Bash and PowerShell wrapper scripts
 - Works fully offline; the LLM is optional
-- 76 tests (pytest) including the agent loop with a scripted fake LLM, the self-healing runner, and **stress tests** (100,000-line log, 200 logs in a row, binary garbage input)
+- 78 tests (pytest) including the agent loop with a scripted fake LLM, the self-healing runner, and **stress tests** (100,000-line log, 200 logs in a row, binary garbage input)
 - **Jenkinsfile** (lint → test → smoke test, JUnit results) and **GitHub Actions** CI on a Linux/Windows matrix, a Docker image, and an end-to-end agent job on a real local LLM
 
 ## Quick start

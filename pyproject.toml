@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pipelinedoctor"
+version = "0.1.0"
+description = "Diagnose failed CI/CD build logs and suggest fixes using rules, a knowledge base and an optional LLM."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Pranesh Ragavendar S" }]
+dependencies = [
+    "pyyaml>=6.0",
+    "langgraph>=0.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+pipelinedoctor = "pipelinedoctor.cli:main"
+
+[tool.setuptools]
+packages = ["pipelinedoctor"]
+
+[tool.setuptools.package-data]
+pipelinedoctor = ["data/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

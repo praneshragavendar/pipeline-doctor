@@ -1,0 +1,254 @@
+# PipelineDoctor rule catalogue
+# Each rule: id, category, severity, one or more regex patterns (case-insensitive),
+# a plain-English cause and a list of fix hints.
+# Rules are checked in order of priority (higher first).
+
+rules:
+  - id: MSVC_TOOLSET_MISMATCH
+    category: Toolchain / Compiler
+    severity: high
+    priority: 90
+    patterns:
+      - "MSB8020"
+      - "toolset .* cannot be found"
+      - "cannot find .*vcvars"
+      - "LNK1104: cannot open file"
+      - "MSVC .*version .*(mismatch|not found)"
+    cause: >
+      The build agent is using a different MSVC / Visual C++ toolset version than the one
+      the project was built with, or the toolset path is hardcoded and does not exist on this agent.
+    fix_hints:
+      - "Check installed toolsets on the agent: run 'vswhere -all -products *' or look under VC\\Tools\\MSVC."
+      - "Do not hardcode toolset paths. Read them from a pipeline/environment variable (e.g. VC_VARS)."
+      - "Align the project's PlatformToolset with the version installed on the agent, or install the missing one."
+
+  - id: SSL_CERT_FAILURE
+    category: Network / Certificates
+    severity: high
+    priority: 85
+    patterns:
+      - "SSL certificate problem"
+      - "unable to get local issuer certificate"
+      - "certificate verify failed"
+      - "The remote certificate is invalid"
+      - "PKIX path building failed"
+      - "SSL/TLS secure channel"
+    cause: >
+      The agent cannot verify the server's TLS certificate. On corporate networks this is usually a
+      firewall or proxy doing SSL inspection with a company root certificate the agent does not trust.
+    fix_hints:
+      - "Install the corporate root CA certificate into the agent's trust store (Windows cert store / Java cacerts / OS bundle)."
+      - "If a proxy is required, configure it for the tool (e.g. agent --proxyurl, HTTPS_PROXY env var)."
+      - "Never disable TLS verification in production pipelines; fix the trust chain instead."
+
+  - id: PROXY_OR_NETWORK_BLOCKED
+    category: Network / Connectivity
+    severity: high
+    priority: 80
+    patterns:
+      - "Could not resolve host"
+      - "Name or service not known"
+      - "Connection timed out"
+      - "Connection refused"
+      - "407 Proxy Authentication Required"
+      - "Temporary failure in name resolution"
+    cause: >
+      The agent cannot reach a required host. Likely causes: DNS failure, firewall rules, a proxy that
+      needs authentication, or the target service being down.
+    fix_hints:
+      - "From the agent, test the host with 'curl -v <url>' or 'Test-NetConnection <host> -Port 443'."
+      - "Check proxy settings (HTTP_PROXY / HTTPS_PROXY / NO_PROXY) for the agent service account."
+      - "Ask the network team to allow-list the host if it is blocked by the firewall."
+
+  - id: POWERSHELL_AND_OPERATOR
+    category: Scripting / Shell
+    severity: medium
+    priority: 75
+    patterns:
+      - "The token '&&' is not a valid statement separator"
+      - "The token '\\|\\|' is not a valid statement separator"
+    cause: >
+      Windows PowerShell 5.1 does not support '&&' / '||' to chain commands (only PowerShell 7+ does).
+    fix_hints:
+      - "Run the chained command through cmd: cmd /c \"step1 && step2\"."
+      - "Or split into separate lines and check $LASTEXITCODE after each command."
+      - "Or switch the pipeline task to PowerShell 7 (pwsh)."
+
+  - id: PYTHON_MODULE_MISSING
+    category: Dependencies
+    severity: medium
+    priority: 70
+    patterns:
+      - "ModuleNotFoundError: No module named '([^']+)'"
+      - "ImportError: No module named ([\\w\\.]+)"
+    cause: >
+      A Python package used by the code is not installed in the environment the pipeline runs in.
+    fix_hints:
+      - "Add the package to requirements.txt / pyproject.toml and install it in the pipeline before running."
+      - "Make sure the pipeline uses the same virtual environment / Python version as local development."
+      - "Pin versions so builds are reproducible."
+
+  - id: MAVEN_DEPENDENCY_RESOLUTION
+    category: Dependencies
+    severity: medium
+    priority: 70
+    patterns:
+      - "Could not resolve dependencies for project"
+      - "Could not find artifact"
+      - "Failed to read artifact descriptor"
+      - "Non-resolvable parent POM"
+    cause: >
+      Maven could not download a dependency: it does not exist in the configured repositories,
+      the version is wrong, or the repository is unreachable / needs credentials.
+    fix_hints:
+      - "Check the groupId/artifactId/version in pom.xml for typos."
+      - "Verify repository URLs and credentials in settings.xml (private Nexus/Artifactory)."
+      - "Run 'mvn -U dependency:resolve' locally to reproduce; clear a corrupted ~/.m2 entry if needed."
+
+  - id: NPM_INSTALL_FAILURE
+    category: Dependencies
+    severity: medium
+    priority: 65
+    patterns:
+      - "npm ERR! code ERESOLVE"
+      - "npm ERR! 404"
+      - "npm ERR! code E404"
+      - "ERESOLVE unable to resolve dependency tree"
+    cause: >
+      npm could not install packages: a version conflict between dependencies or a package/version
+      that does not exist in the registry.
+    fix_hints:
+      - "Use 'npm ci' with a committed package-lock.json for reproducible installs."
+      - "Resolve the peer dependency conflict, or as a last resort use --legacy-peer-deps."
+      - "Check the package name and version in package.json."
+
+  - id: JAVA_COMPILE_ERROR
+    category: Build / Compilation
+    severity: high
+    priority: 60
+    patterns:
+      - "COMPILATION ERROR"
+      - "error: cannot find symbol"
+      - "error: incompatible types"
+      - "Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin"
+    cause: >
+      The Java code does not compile: a missing symbol, wrong type, or a JDK version mismatch
+      between the pipeline and the project.
+    fix_hints:
+      - "Open the first 'error:' line - later errors are often caused by the first one."
+      - "Check the JDK version on the agent matches maven.compiler.source/target in pom.xml."
+      - "Run 'mvn clean compile' locally on the same commit to reproduce."
+
+  - id: TEST_FAILURE
+    category: Tests
+    severity: medium
+    priority: 55
+    patterns:
+      - "Tests run: \\d+, Failures: [1-9]"
+      - "Tests run: \\d+, Failures: \\d+, Errors: [1-9]"
+      - "There are test failures"
+      - "=+ \\d+ failed"
+      - "FAILED tests/"
+      - "AssertionError"
+    cause: >
+      The build compiled, but one or more automated tests failed, so the pipeline stopped before deploying.
+    fix_hints:
+      - "Find the first failing test name in the log and run only that test locally."
+      - "Check whether the failure is a real bug or an environment issue (time zone, missing test data, network)."
+      - "Do not skip or delete failing tests to make the pipeline green; fix the cause."
+
+  - id: PERMISSION_DENIED
+    category: Permissions / Access
+    severity: high
+    priority: 50
+    patterns:
+      - "Permission denied"
+      - "Access is denied"
+      - "EACCES"
+      - "UnauthorizedAccessException"
+      - "403 Forbidden"
+    cause: >
+      The pipeline's service account does not have permission to read/write a file, folder, registry
+      or remote resource.
+    fix_hints:
+      - "Identify which account the agent runs as and grant it the minimum permission it needs."
+      - "On Linux check ownership/mode with 'ls -l'; on Windows check folder security settings."
+      - "For 403 from an API/registry, check the token's scopes and expiry."
+
+  - id: DISK_SPACE
+    category: Infrastructure / Resources
+    severity: high
+    priority: 50
+    patterns:
+      - "No space left on device"
+      - "There is not enough space on the disk"
+      - "ENOSPC"
+    cause: >
+      The build agent ran out of disk space (old build folders, Docker images, caches or logs piling up).
+    fix_hints:
+      - "Clean old workspaces/artifacts and add a retention policy for backups and build outputs."
+      - "On Docker hosts run 'docker system prune' on a schedule."
+      - "Add a pre-flight check that fails early when free space is below a threshold."
+
+  - id: OUT_OF_MEMORY
+    category: Infrastructure / Resources
+    severity: high
+    priority: 50
+    patterns:
+      - "java.lang.OutOfMemoryError"
+      - "JavaScript heap out of memory"
+      - "Killed\\s*$"
+      - "exit code 137"
+    cause: >
+      The build process ran out of memory and was killed (JVM heap, Node heap, or container memory limit).
+    fix_hints:
+      - "Increase the memory limit (e.g. MAVEN_OPTS=-Xmx2g, NODE_OPTIONS=--max-old-space-size=4096, container limits)."
+      - "Check for a memory leak or an unexpectedly large test/data set."
+      - "Run heavy stages on a bigger agent."
+
+  - id: DOCKER_DAEMON
+    category: Containers
+    severity: medium
+    priority: 45
+    patterns:
+      - "Cannot connect to the Docker daemon"
+      - "docker: command not found"
+      - "error during connect"
+    cause: >
+      Docker is not installed, not running, or the agent user is not allowed to talk to the Docker daemon.
+    fix_hints:
+      - "Start the Docker service on the agent and check 'docker info'."
+      - "On Linux add the agent user to the 'docker' group (then restart the agent)."
+      - "On hosted runners, make sure the job uses an image/runner that has Docker available."
+
+  - id: GIT_MERGE_CONFLICT
+    category: Source Control
+    severity: medium
+    priority: 45
+    patterns:
+      - "CONFLICT \\(content\\): Merge conflict in"
+      - "Automatic merge failed"
+      - "Your local changes to the following files would be overwritten"
+    cause: >
+      Git could not merge or pull because of conflicting changes, often leftover local changes on a
+      self-hosted agent's working folder.
+    fix_hints:
+      - "Resolve the conflict on a branch and push the fix; do not resolve conflicts on the agent."
+      - "Configure the pipeline to clean the workspace before checkout (e.g. 'clean: true' / git clean -fdx)."
+      - "Avoid scripts that modify tracked files in the agent's working copy."
+
+  - id: TIMEOUT
+    category: Pipeline / Execution
+    severity: low
+    priority: 30
+    patterns:
+      - "timed out after"
+      - "exceeded the maximum execution time"
+      - "The job running on agent .* ran longer than the maximum time"
+    cause: >
+      A step took longer than the configured time limit: a slow/hanging command, a waiting prompt,
+      or a limit set too low for the workload.
+    fix_hints:
+      - "Find which command was running when the timeout hit and check if it waits for input."
+      - "Add verbose logging around long steps to see where time is spent."
+      - "Raise the timeout only after confirming the step is genuinely slow, not stuck."

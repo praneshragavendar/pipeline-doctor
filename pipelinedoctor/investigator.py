@@ -18,7 +18,8 @@ from pipelinedoctor.knowledge import KnowledgeBase
 
 MAX_TOOL_CALLS = 6
 MAX_OBSERVATION_CHARS = 1500
-MAX_READ_LINES = 40
+MAX_READ_LINES = 80
+CONTEXT_LINES = 8  # lines shown before/after the first error, so the agent starts with context
 TOOLS = ("search_log", "read_lines", "search_incidents", "final")
 
 AGENT_PROMPT = """You are PipelineDoctor's investigator agent. A CI/CD build failed and no known
@@ -34,6 +35,9 @@ Tools (call exactly one per reply):
 Facts about the log ({total} lines). Lines that look like errors:
 {errors}
 
+Lines around the first error:
+{context}
+
 Similar past incidents found so far:
 {incidents}
 
@@ -42,7 +46,10 @@ Steps taken so far:
 
 Rules:
 - If the error lines above already explain the failure, give your final answer straight away.
-- Never repeat a tool call you already made; read a bigger range instead of many small ones.
+- Never repeat a tool call you already made. Read the whole range you need in one read_lines call.
+- Write everything (thought, cause, fix hints) in English.
+- Your final answer must include a cause and at least one concrete fix hint. Use details the log
+  shows (who, what, when) and set confidence from how clearly the log supports your cause.
 - Fix hints must solve the root cause. Never suggest disabling a safety mechanism (for example
   -lock=false, --force, --no-verify or skipping tests) as the fix, even if the log mentions it.
 
@@ -70,9 +77,20 @@ def numbered_error_lines(text: str, errors: List[str], limit: int = 15) -> List[
     return out
 
 
+def first_error_context(text: str, numbered_errors: List[str]) -> str:
+    """The lines around the first error, numbered - often enough to diagnose without any tool."""
+    for entry in numbered_errors:
+        number = entry.split(":", 1)[0]
+        if number.isdigit():
+            line = int(number)
+            return tool_read_lines(text, max(1, line - CONTEXT_LINES), line + CONTEXT_LINES)
+    return "(none)"
+
+
 def build_agent_prompt(state: Dict[str, Any]) -> str:
     text = state["text"]
-    errors = numbered_error_lines(text, state.get("errors", [])) or ["(no obvious error lines)"]
+    numbered = numbered_error_lines(text, state.get("errors", []))
+    errors = numbered or ["(no obvious error lines)"]
     incidents = [
         f"- {inc.id} ({int(score * 100)}% similar): {inc.title}. Fix: {inc.fix}"
         for inc, score in state.get("similar", [])
@@ -92,6 +110,7 @@ def build_agent_prompt(state: Dict[str, Any]) -> str:
         max_read=MAX_READ_LINES,
         total=len(text.splitlines()),
         errors="\n".join(errors),
+        context=first_error_context(text, numbered),
         incidents="\n".join(incidents),
         steps="\n".join(steps),
         budget=budget,

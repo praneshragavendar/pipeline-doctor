@@ -138,3 +138,19 @@ def test_prompt_forbids_unsafe_fixes():
     state = {"text": "Error: Error acquiring the state lock", "errors": [], "similar": [], "agent_trace": []}
     prompt = investigator.build_agent_prompt(state)
     assert "-lock=false" in prompt and "Never repeat a tool call" in prompt
+
+
+def test_final_answer_without_fix_hints_is_rejected_once(monkeypatch):
+    empty = {"thought": "done", "action": "final", "args": {"category": "C", "cause": "c", "fix_hints": [], "confidence": 0.3}}
+    good = {"thought": "done", "action": "final", "args": {"category": "C", "cause": "c", "fix_hints": ["check X"], "confidence": 0.3}}
+    prompts = scripted(monkeypatch, [empty, good])
+    diagnosis = Doctor().diagnose(UNKNOWN)
+    assert diagnosis.source == "agent" and diagnosis.fix_hints == ["check X"]
+    assert len(prompts) == 2
+
+
+def test_prompt_includes_context_around_first_error():
+    text = "\n".join(f"line {n}" for n in range(1, 30)).replace("line 15", "Error: state lock")
+    state = {"text": text, "errors": ["Error: state lock"], "similar": [], "agent_trace": []}
+    prompt = investigator.build_agent_prompt(state)
+    assert "7: line 7" in prompt and "23: line 23" in prompt and "Write everything" in prompt

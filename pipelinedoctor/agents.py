@@ -105,6 +105,10 @@ def build_graph(rules: List[Rule], kb: KnowledgeBase):
             action, args, thought = investigator.parse_action(reply)
             if action != "final" and len(trace) >= investigator.MAX_TOOL_CALLS:
                 raise investigator.AgentError("no tool calls left; a final answer was required")
+            if action == "final":
+                hints = args.get("fix_hints")
+                if not str(args.get("cause", "")).strip() or not hints or not any(str(h).strip() for h in (hints if isinstance(hints, list) else [hints])):
+                    raise investigator.AgentError("a final answer needs a cause and at least one fix hint")
         except investigator.AgentError as exc:
             bad += 1
             status = "bad_replies" if bad >= MAX_BAD_REPLIES else "running"

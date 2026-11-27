@@ -67,7 +67,7 @@ flowchart LR
 | `rule_matcher` | Scores every YAML rule against the log; best match first |
 | `retriever` | Finds the most similar past incidents using TF-IDF + cosine similarity (pure Python, no vector DB needed) |
 | `rule_advisor` | Builds the diagnosis from the best rule (confidence 80–90%) |
-| `investigator` | **The agent.** Sends the LLM what it knows so far; the LLM replies with its next action as JSON (a tool call or a final diagnosis). Max 6 tool calls |
+| `investigator` | **The agent.** Sends the LLM what it knows so far; the LLM replies with its next action as JSON (a tool call or a final diagnosis). Starts with the lines around the first error; max 6 tool calls |
 | `tools` | Runs the tool the agent chose – all read-only – and feeds the result back to the investigator (the agent loop) |
 | `llm_advisor` | Fallback if the agent's replies are unusable twice: asks the LLM once with error lines + retrieved incidents |
 | `reporter` | Produces the final diagnosis (including the agent's step-by-step investigation), or an honest "unknown" with next steps |
@@ -93,7 +93,7 @@ How the agent investigated:
 - CI-friendly exit codes: `0` diagnosed, `2` unknown (with `--fail-on-unknown`), `3` bad input, `4` lint failed
 - **Cross-platform**: Linux, Windows and WSL2; no hardcoded paths (`pathlib` + environment variables); handles UTF-16/cp1252 Windows logs and CRLF line endings; Bash and PowerShell wrapper scripts
 - Works fully offline; the LLM is optional
-- 78 tests (pytest) including the agent loop with a scripted fake LLM, the self-healing runner, and **stress tests** (100,000-line log, 200 logs in a row, binary garbage input)
+- 80 tests (pytest) including the agent loop with a scripted fake LLM, the self-healing runner, and **stress tests** (100,000-line log, 200 logs in a row, binary garbage input)
 - **Jenkinsfile** (lint → test → smoke test, JUnit results) and **GitHub Actions** CI on a Linux/Windows matrix, a Docker image, and an end-to-end agent job on a real local LLM
 
 ## Quick start

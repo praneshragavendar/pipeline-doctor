@@ -159,7 +159,7 @@ Rules are validated on load (required fields, valid regex) so a bad rule fails f
 ## Use it in your pipeline
 
 - **Jenkins:** see the [`Jenkinsfile`](Jenkinsfile). It lints the rule files (`pipelinedoctor lint --strict`), runs the tests, diagnoses sample logs and publishes JUnit XML results. In your own pipeline, add `pipelinedoctor analyze build.log --format junit > diagnosis.xml` in a `post { failure { ... } }` block and publish it with the `junit` step.
-- **GitHub Actions:** see [`.github/workflows/diagnose-on-failure.example.yml`](.github/workflows/diagnose-on-failure.example.yml). When the build step fails, PipelineDoctor writes its diagnosis to the job summary.
+- **GitHub Actions:** see [`examples/github-actions-diagnose-on-failure.yml`](examples/github-actions-diagnose-on-failure.yml). When the build step fails, PipelineDoctor writes its diagnosis to the job summary.
 
 ## Project structure
 

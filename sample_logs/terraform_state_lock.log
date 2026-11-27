@@ -1,0 +1,23 @@
+2026-11-21T09:14:02Z ##[group]Run terraform plan -input=false -out=tfplan
+2026-11-21T09:14:03Z Initializing the backend...
+2026-11-21T09:14:05Z Successfully configured the backend "s3"!
+2026-11-21T09:14:06Z Initializing provider plugins...
+2026-11-21T09:14:09Z - Using previously-installed hashicorp/aws v5.62.0
+2026-11-21T09:14:10Z Acquiring state lock. This may take a few moments...
+2026-11-21T09:14:21Z
+2026-11-21T09:14:21Z Error: Error acquiring the state lock
+2026-11-21T09:14:21Z
+2026-11-21T09:14:21Z Error message: ConditionalCheckFailedException: The conditional request failed
+2026-11-21T09:14:21Z Lock Info:
+2026-11-21T09:14:21Z   ID:        8f3c2a71-4b6e-9d10-ae55-0c7f2b9e1d34
+2026-11-21T09:14:21Z   Path:      company-tf-state/prod/network.tfstate
+2026-11-21T09:14:21Z   Operation: OperationTypeApply
+2026-11-21T09:14:21Z   Who:       runner@gha-runner-7
+2026-11-21T09:14:21Z   Version:   1.9.5
+2026-11-21T09:14:21Z   Created:   2026-11-21 08:41:57 UTC
+2026-11-21T09:14:21Z
+2026-11-21T09:14:21Z Terraform acquires a state lock to protect the state from being written
+2026-11-21T09:14:21Z by multiple users at the same time. Please resolve the issue above and try
+2026-11-21T09:14:21Z again. For most commands, you can disable locking with the "-lock=false"
+2026-11-21T09:14:21Z flag, but this is not recommended.
+2026-11-21T09:14:22Z ##[error]Process completed with exit code 1.

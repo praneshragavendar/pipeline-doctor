@@ -41,6 +41,29 @@ rules:
       - "If a proxy is required, configure it for the tool (e.g. agent --proxyurl, HTTPS_PROXY env var)."
       - "Never disable TLS verification in production pipelines; fix the trust chain instead."
 
+  - id: TRANSIENT_NETWORK_ERROR
+    category: Network / Transient
+    severity: medium
+    priority: 85
+    retryable: true
+    patterns:
+      - "Connection reset by peer"
+      - "Read timed out"
+      - "ECONNRESET"
+      - "ETIMEDOUT"
+      - "503 Service Unavailable"
+      - "502 Bad Gateway"
+      - "TLS handshake timeout"
+      - "429 Too Many Requests"
+    cause: >
+      A temporary network or service problem interrupted the build: the remote server reset the
+      connection, timed out, was briefly unavailable, or rate-limited the request. These failures
+      usually pass when the step is run again.
+    fix_hints:
+      - "Re-run the step; 'pipelinedoctor run' does this automatically with backoff."
+      - "If it keeps failing, check the status page of the registry or service you download from."
+      - "Use a dependency cache or mirror so builds depend less on external services."
+
   - id: PROXY_OR_NETWORK_BLOCKED
     category: Network / Connectivity
     severity: high

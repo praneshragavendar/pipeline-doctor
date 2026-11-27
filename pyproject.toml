@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pipelinedoctor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Diagnose failed CI/CD build logs and suggest fixes using rules, a knowledge base and an optional LLM."
 readme = "README.md"
 requires-python = ">=3.10"

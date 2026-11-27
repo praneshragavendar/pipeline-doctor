@@ -9,12 +9,6 @@ from pipelinedoctor.cli import EXIT_INPUT_ERROR, EXIT_OK, EXIT_UNKNOWN, main
 SAMPLES = Path(__file__).resolve().parent.parent / "sample_logs"
 
 
-@pytest.fixture(autouse=True)
-def no_api_key(monkeypatch):
-    # Tests must never call a real LLM.
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-
-
 @pytest.mark.parametrize(
     "log_name, rule_id",
     [
@@ -77,10 +71,12 @@ def test_cli_rules_command(capsys):
     assert "SSL_CERT_FAILURE" in capsys.readouterr().out
 
 
-def test_unknown_log_uses_llm_when_configured(monkeypatch):
+def test_unknown_log_falls_back_to_one_shot_llm_when_agent_replies_are_bad(monkeypatch):
     from pipelinedoctor import llm
 
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    # The agent loop gets unusable replies twice, so the workflow asks the LLM once directly.
+    monkeypatch.setattr(llm, "chat", lambda prompt, timeout=None: "not json at all")
     fake = {"category": "Deployment", "cause": "sync-assets failed", "fix_hints": ["check asset store"], "confidence": 0.6}
     monkeypatch.setattr(llm, "diagnose", lambda errors, incidents: fake)
     diagnosis = Doctor().diagnose(str(SAMPLES / "unknown_custom_tool.log"))
@@ -94,10 +90,10 @@ def test_llm_failure_degrades_gracefully(monkeypatch):
 
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
 
-    def boom(errors, incidents):
+    def boom(prompt, timeout=None):
         raise llm.LLMUnavailable("network down")
 
-    monkeypatch.setattr(llm, "diagnose", boom)
+    monkeypatch.setattr(llm, "chat", boom)
     diagnosis = Doctor().diagnose(str(SAMPLES / "unknown_custom_tool.log"))
     assert diagnosis.status == "unknown"
     assert any("network down" in hint for hint in diagnosis.fix_hints)

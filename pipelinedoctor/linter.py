@@ -100,6 +100,10 @@ def lint_rules(path: str) -> List[LintIssue]:
                 issues.append(LintIssue(path, where, "warning", f"regex '{pattern}' is very short",
                                         "short patterns cause false positives; include more of the error text"))
 
+        if "retryable" in rule and not isinstance(rule["retryable"], bool):
+            issues.append(LintIssue(path, where, "error", f"retryable '{rule['retryable']}' must be true or false",
+                                    "write 'retryable: true' only for temporary failures that pass on a re-run"))
+
         hints = rule.get("fix_hints") or []
         if isinstance(hints, list) and len(hints) < 2:
             issues.append(LintIssue(path, where, "warning", "only one fix hint", "give at least two concrete things to try"))

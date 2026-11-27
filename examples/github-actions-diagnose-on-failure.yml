@@ -1,7 +1,7 @@
 # Example: how a team would plug PipelineDoctor into THEIR pipeline.
-# When the build step fails, PipelineDoctor reads the saved log and writes a
-# diagnosis to the GitHub Actions job summary.
-# (This file is an example; rename it to .yml in a project that has a real build.)
+# The build runs through `pipelinedoctor run`: network blips are retried automatically,
+# and any other failure is diagnosed in the GitHub Actions job summary.
+# (This file is an example; copy it to .github/workflows/ in a project that has a real build.)
 
 name: Build with PipelineDoctor
 
@@ -13,18 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build (output saved to build.log)
-        id: build
-        shell: bash
-        run: |
-          set -o pipefail
-          mvn -B package 2>&1 | tee build.log
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Diagnose failure
-        if: failure() && steps.build.outcome == 'failure'
-        shell: bash
+      - name: Install PipelineDoctor
+        run: pip install git+https://github.com/Praneshragavendar/pipeline-doctor.git
+
+      - name: Build (self-healing)
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # optional: enables the LLM fallback
-        run: |
-          pip install git+https://github.com/Praneshragavendar/pipeline-doctor.git
-          pipelinedoctor analyze build.log --format markdown >> "$GITHUB_STEP_SUMMARY"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # optional: AI investigation of unknown failures
+        run: pipelinedoctor run --max-retries 2 --github-summary -- mvn -B package

@@ -12,6 +12,17 @@ def to_json(diagnoses: List[Diagnosis]) -> str:
     return json.dumps(payload[0] if len(payload) == 1 else payload, indent=2)
 
 
+def _cell(text: str, limit: int = 100) -> str:
+    """Make text safe for a Markdown table cell."""
+    return str(text)[:limit].replace("|", "\\|").replace("\n", " ")
+
+
+def _step_line(step: dict) -> str:
+    args = ", ".join(f"{k}={v!r}" for k, v in step["args"].items())
+    line = f"{step['step']}. {step['action']}({args})"
+    return line if step["action"] == "final" else f"{line} -> {step['result']}"
+
+
 def to_text(diagnosis: Diagnosis) -> str:
     """Readable report for a terminal or a CI job summary."""
     icon = "[DIAGNOSED]" if diagnosis.status == "diagnosed" else "[UNKNOWN]"
@@ -23,6 +34,8 @@ def to_text(diagnosis: Diagnosis) -> str:
         f"Severity   : {diagnosis.severity}",
         f"Confidence : {int(diagnosis.confidence * 100)}%  (source: {diagnosis.source})",
     ]
+    if diagnosis.llm:
+        lines.append(f"LLM        : {diagnosis.llm}")
     if diagnosis.rule_id:
         lines.append(f"Rule       : {diagnosis.rule_id}")
     lines += ["", "Likely cause:", f"  {diagnosis.cause}", "", "How to fix:"]
@@ -36,6 +49,9 @@ def to_text(diagnosis: Diagnosis) -> str:
             f"  - {s['id']} ({int(s['similarity'] * 100)}% similar): {s['title']}"
             for s in diagnosis.similar_incidents
         ]
+    if diagnosis.agent_trace:
+        lines += ["", "How the agent investigated:"]
+        lines += [f"  {_step_line(step)}" for step in diagnosis.agent_trace]
     if diagnosis.other_matches:
         lines += ["", f"Also matched: {', '.join(diagnosis.other_matches)}"]
     return "\n".join(lines)
@@ -45,12 +61,20 @@ def to_markdown(diagnosis: Diagnosis) -> str:
     """Markdown version, used for GitHub Actions job summaries."""
     hints = "\n".join(f"{n}. {h}" for n, h in enumerate(diagnosis.fix_hints, start=1))
     evidence = "\n".join(diagnosis.evidence[:3])
+    trace = ""
+    if diagnosis.agent_trace:
+        rows = "\n".join(
+            f"| {t['step']} | `{t['action']}` | `{_cell(json.dumps(t['args']), 80)}` | {_cell(t['thought'])} | {_cell(t['result'])} |"
+            for t in diagnosis.agent_trace
+        )
+        trace = (f"\n**How the agent investigated** ({diagnosis.llm}):\n\n"
+                 f"| Step | Tool | Arguments | Why | Result |\n| --- | --- | --- | --- | --- |\n{rows}\n")
     return (
         f"## PipelineDoctor: {diagnosis.category}\n\n"
         f"**Status:** {diagnosis.status} | **Confidence:** {int(diagnosis.confidence * 100)}% "
         f"| **Source:** {diagnosis.source}\n\n"
         f"**Likely cause:** {diagnosis.cause}\n\n"
-        f"**How to fix:**\n{hints}\n\n"
+        f"**How to fix:**\n{hints}\n{trace}\n"
         f"<details><summary>Evidence</summary>\n\n```\n{evidence}\n```\n</details>\n"
     )
 
@@ -76,6 +100,7 @@ def to_junit_xml(diagnoses: List[Diagnosis]) -> str:
             [f"Confidence: {int(d.confidence * 100)}% (source: {d.source})", "How to fix:"]
             + [f"  {n}. {h}" for n, h in enumerate(d.fix_hints, start=1)]
             + ["Evidence:"] + [f"  > {line}" for line in d.evidence]
+            + (["Agent investigation:"] + [f"  {_step_line(t)}" for t in d.agent_trace] if d.agent_trace else [])
         )
     ET.indent(suite)
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(suite, encoding="unicode")

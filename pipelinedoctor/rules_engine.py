@@ -64,6 +64,7 @@ def load_rules(path: Optional[str] = None) -> List[Rule]:
                 patterns=item["patterns"],
                 cause=" ".join(item["cause"].split()),
                 fix_hints=item["fix_hints"],
+                retryable=bool(item.get("retryable", False)),
             )
         )
     if not rules:

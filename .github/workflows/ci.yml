@@ -56,3 +56,75 @@ jobs:
         run: docker build -t pipelinedoctor:ci .
       - name: Run container on a sample log
         run: docker run --rm -v "$PWD/sample_logs:/logs" pipelinedoctor:ci analyze /logs/docker_disk_full.log --no-llm
+
+  agent:
+    # Proves the agentic features end to end on a real (free, local) LLM - no API key needed.
+    name: AI agent on a local LLM (Ollama) + self-healing run
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 40
+    env:
+      PIPELINEDOCTOR_LLM: ollama
+      PIPELINEDOCTOR_OLLAMA_MODEL: qwen2.5:3b
+      OLLAMA_MODELS: /home/runner/.ollama/models
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install PipelineDoctor
+        run: pip install -e .
+
+      - name: Self-healing run (a network blip is retried automatically)
+        run: >
+          pipelinedoctor run --backoff 2 --no-llm --github-summary
+          -- python scripts/flaky_build.py "$RUNNER_TEMP/flaky_marker"
+
+      - name: Cache the model download
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.ollama/models
+          key: ollama-${{ env.PIPELINEDOCTOR_OLLAMA_MODEL }}
+
+      - name: Install Ollama and download the model
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          sudo systemctl stop ollama 2>/dev/null || true
+          nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:11434/api/tags > /dev/null && break; sleep 2; done
+          ollama pull "$PIPELINEDOCTOR_OLLAMA_MODEL"
+          ollama list
+
+      - name: Agent investigates failures that no rule covers
+        run: |
+          mkdir -p agent-results
+          for log in sample_logs/terraform_state_lock.log sample_logs/unknown_custom_tool.log; do
+            name=$(basename "$log" .log)
+            echo "::group::$name"
+            time pipelinedoctor analyze "$log" --format json --github-summary > "agent-results/$name.json"
+            cat "agent-results/$name.json"
+            echo "::endgroup::"
+          done
+
+      - name: Check the agent really investigated
+        run: |
+          python - <<'PY'
+          import json
+          for name in ("terraform_state_lock", "unknown_custom_tool"):
+              d = json.load(open(f"agent-results/{name}.json"))
+              steps = [s["action"] for s in d["agent_trace"]]
+              print(f"{name}: source={d['source']} status={d['status']} confidence={d['confidence']} steps={steps}")
+              assert d["status"] == "diagnosed", f"{name} was not diagnosed"
+              assert d["source"] in ("agent", "llm"), f"{name}: no LLM diagnosis"
+          assert json.load(open("agent-results/terraform_state_lock.json"))["source"] == "agent"
+          PY
+
+      - name: Upload agent results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-results
+          path: agent-results/

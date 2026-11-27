@@ -15,6 +15,7 @@ class Rule:
     patterns: List[str]
     cause: str
     fix_hints: List[str]
+    retryable: bool = False  # transient failure: safe for `pipelinedoctor run` to retry automatically
 
 
 @dataclass
@@ -51,9 +52,11 @@ class Diagnosis:
     fix_hints: List[str]
     evidence: List[str]
     confidence: float
-    source: str  # "rules", "llm" or "none"
+    source: str  # "rules", "agent", "llm" or "none"
     similar_incidents: List[dict] = field(default_factory=list)
     other_matches: List[str] = field(default_factory=list)
+    llm: str = ""  # e.g. "ollama:qwen2.5:3b" when an LLM produced the diagnosis
+    agent_trace: List[dict] = field(default_factory=list)  # the investigator's steps
 
     def to_dict(self) -> dict:
         return asdict(self)

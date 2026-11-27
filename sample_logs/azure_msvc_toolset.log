@@ -1,0 +1,10 @@
+2026-07-02T10:14:01Z ##[section]Starting: CompileCPP
+2026-07-02T10:14:02Z Running bmide_build_wrapper.bat for project BMIDE2406_Custom
+2026-07-02T10:14:05Z ********************************************************************
+2026-07-02T10:14:05Z ** Visual Studio 2022 Developer Command Prompt v17.14
+2026-07-02T10:14:06Z [ERROR] Cannot find C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat
+2026-07-02T10:14:06Z Expected MSVC 14.44.35207, found 14.44.35227 - MSVC toolset version mismatch
+2026-07-02T10:14:09Z LINK : fatal error LNK1104: cannot open file 'libcpmt.lib'
+2026-07-02T10:14:09Z NMAKE : fatal error U1077: 'link.exe' : return code '0x450'
+2026-07-02T10:14:09Z ##[error]Process completed with exit code 2.
+2026-07-02T10:14:09Z ##[section]Finishing: CompileCPP

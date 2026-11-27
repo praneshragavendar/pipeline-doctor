@@ -1,0 +1,7 @@
+#7 [build 3/6] RUN mvn -q package -DskipTests
+#7 41.22 [ERROR] Failed to write target/fund-ledger.jar
+#7 41.23 java.io.IOException: No space left on device
+#7 ERROR: process "/bin/sh -c mvn -q package -DskipTests" did not complete successfully: exit code: 1
+------
+ERROR: failed to solve: write /var/lib/docker/overlay2/xyz/diff/app.jar: no space left on device
+Error: Process completed with exit code 1.

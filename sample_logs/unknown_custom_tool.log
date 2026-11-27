@@ -1,0 +1,6 @@
+[2026-11-20 14:02:11] deploy-helper v3.2 starting
+[2026-11-20 14:02:12] loading manifest from config/release.manifest
+[2026-11-20 14:02:13] stage 4/7 sync-assets
+[2026-11-20 14:02:19] sync-assets returned status QX-417
+[2026-11-20 14:02:19] rollback triggered by deploy-helper policy
+[2026-11-20 14:02:20] deploy-helper finished with errors

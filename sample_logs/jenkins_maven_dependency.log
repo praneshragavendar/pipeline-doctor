@@ -1,0 +1,11 @@
+Started by GitHub push by dev-user
+[Pipeline] stage (Build)
+[INFO] Scanning for projects...
+[INFO] ---------------------< com.example:fund-ledger >---------------------
+[INFO] Building fund-ledger 1.0.0-SNAPSHOT
+[WARNING] The POM for com.example:ledger-common:jar:2.3.1 is missing, no dependency information available
+[INFO] BUILD FAILURE
+[ERROR] Failed to execute goal on project fund-ledger: Could not resolve dependencies for project com.example:fund-ledger:jar:1.0.0-SNAPSHOT: Could not find artifact com.example:ledger-common:jar:2.3.1 in nexus (https://nexus.example.com/repository/maven-public/) -> [Help 1]
+[Pipeline] }
+ERROR: script returned exit code 1
+Finished: FAILURE

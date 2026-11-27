@@ -1,0 +1,11 @@
+>> Connect:
+Enter server URL > https://dev.azure.com/example-org
+Enter authentication type (press enter for PAT) >
+Enter personal access token > ****************************************
+Connecting to server ...
+Error reported in diagnostic logs. Please examine the log for more details.
+    - C:\agent\_diag\Agent_20260115-101532-utc.log
+The SSL connection could not be established, see inner exception.
+The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot
+Could not establish trust relationship for the SSL/TLS secure channel.
+Failed to connect.  Try again or ctrl-c to quit

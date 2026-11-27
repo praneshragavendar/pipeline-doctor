@@ -1,0 +1,14 @@
+##[section]Starting: Generate Packages
+==============================================================================
+Task         : PowerShell
+Version      : 2.247.1
+==============================================================================
+Generating script.
+========================== Starting Command Output ===========================
+At D:\AzureAgent\_work\_temp\a1b2c3.ps1:4 char:28
++ cd $(Build.SourcesDirectory) && bmide_generate_package.bat
++                            ~~
+The token '&&' is not a valid statement separator in this version.
+    + CategoryInfo          : ParserError: (:) [], ParseException
+    + FullyQualifiedErrorId : InvalidEndOfLine
+##[error]PowerShell exited with code '1'.

@@ -1,0 +1,30 @@
+# Example: how a team would plug PipelineDoctor into THEIR pipeline.
+# When the build step fails, PipelineDoctor reads the saved log and writes a
+# diagnosis to the GitHub Actions job summary.
+# (This file is an example; rename it to .yml in a project that has a real build.)
+
+name: Build with PipelineDoctor
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (output saved to build.log)
+        id: build
+        shell: bash
+        run: |
+          set -o pipefail
+          mvn -B package 2>&1 | tee build.log
+
+      - name: Diagnose failure
+        if: failure() && steps.build.outcome == 'failure'
+        shell: bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # optional: enables the LLM fallback
+        run: |
+          pip install git+https://github.com/Praneshragavendar/pipeline-doctor.git
+          pipelinedoctor analyze build.log --format markdown >> "$GITHUB_STEP_SUMMARY"

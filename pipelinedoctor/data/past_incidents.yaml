@@ -1,0 +1,71 @@
+# Knowledge base of past CI/CD incidents and how they were fixed.
+# PipelineDoctor retrieves the most similar incidents for a new failure (retrieval step of RAG)
+# and passes them to the LLM as context, so suggestions are grounded in fixes that worked before.
+
+incidents:
+  - id: INC-001
+    title: C++ build fails on build agent but works on developer machine
+    symptoms: >
+      BMIDE C++ compilation failed on the self-hosted Windows agent. Log showed a different MSVC
+      toolset version (14.44.35207 vs 14.44.35227) and a missing vcvars path.
+    root_cause: Toolset path was hardcoded to a version installed on a developer PC, not on the agent.
+    fix: Moved tool paths (VC_VARS, BMIDE_BAT) into pipeline variables and pointed them at the toolset installed on the agent.
+    tags: [msvc, toolset, compiler, windows, hardcoded path, c++]
+
+  - id: INC-002
+    title: Self-hosted agent cannot register with Azure DevOps
+    symptoms: >
+      Agent configuration failed with an SSL/TLS error: the remote certificate is invalid / could not
+      establish trust relationship for the SSL/TLS secure channel.
+    root_cause: Corporate firewall performs SSL inspection; agent did not trust the company root certificate.
+    fix: Installed the corporate root CA on the build server and configured the proxy for the agent service.
+    tags: [ssl, tls, certificate, firewall, proxy, azure devops, agent]
+
+  - id: INC-003
+    title: PowerShell step fails on '&&'
+    symptoms: >
+      Pipeline step failed with "The token '&&' is not a valid statement separator in this version".
+    root_cause: Windows PowerShell 5.1 does not support command chaining with '&&'.
+    fix: Wrapped the chained command in cmd /c "...". Alternative is running the task with pwsh (PowerShell 7).
+    tags: [powershell, windows, shell, syntax]
+
+  - id: INC-004
+    title: Deployment script picked an old package folder
+    symptoms: >
+      Deploy stage reported success but the latest changes were not deployed. The script located a
+      deploy.bat from a stale package folder created in an earlier run.
+    root_cause: Script discovery searched all folders instead of only the folder created in the current run.
+    fix: Filtered discovery to folders created in the last 10 minutes and added log-based verification after deploy.
+    tags: [deployment, stale folder, verification, script discovery]
+
+  - id: INC-005
+    title: git pull fails on self-hosted agent
+    symptoms: >
+      Checkout step failed: "Your local changes to the following files would be overwritten by merge".
+    root_cause: An earlier step modified tracked files in the agent's working copy.
+    fix: Cleaned the workspace before checkout and stopped scripts from writing into tracked files.
+    tags: [git, merge conflict, agent workspace, checkout]
+
+  - id: INC-006
+    title: Maven build cannot download dependencies
+    symptoms: >
+      "Could not resolve dependencies for project" and "Could not transfer artifact" from the private repository.
+    root_cause: Repository credentials in settings.xml had expired.
+    fix: Rotated the token, stored it as a pipeline secret and injected it into settings.xml at build time.
+    tags: [maven, dependency, nexus, artifactory, credentials, java]
+
+  - id: INC-007
+    title: Unit tests fail only in the pipeline
+    symptoms: >
+      JUnit tests passed locally but failed in CI with date/time assertion errors.
+    root_cause: Agent time zone (UTC) differed from developer machines (IST); tests assumed local time.
+    fix: Made tests time-zone independent by using a fixed Clock in tests.
+    tags: [junit, tests, timezone, flaky, java]
+
+  - id: INC-008
+    title: Build agent out of disk space
+    symptoms: >
+      Packaging stage failed with "There is not enough space on the disk".
+    root_cause: Timestamped backups and old package folders were never deleted.
+    fix: Added a retention policy (keep last N backups) and a pre-flight free-space check.
+    tags: [disk, storage, backup, retention, windows]
